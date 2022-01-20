@@ -1,0 +1,36 @@
+{
+  "manifest_version": 2,
+  "name": "Sutom Solver",
+  "version": "0.0.1",
+  "description": "Une petite extension web permettant de résoudre automatiquement le jeu SUTOM",
+  "author": "Astropilot",
+  "homepage_url": "https://github.com/Astropilot/Sutom_Solver",
+  "minimum_chrome_version": "74",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "sutom_solver@astropilot.github.io",
+      "strict_min_version": "67.0"
+    }
+  },
+  "icons": {
+    "447": "icons/sutom_logo.png"
+  },
+  "permissions": [
+    "*://sutom.nocle.fr/*",
+    "*://*.codexus.fr/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.sutom.nocle.fr/*"
+      ],
+      "run_at": "document_idle",
+      "js": [
+        "sutom/solver.js"
+      ]
+    }
+  ],
+  "web_accessible_resources": [
+    "sutom/dictionnary_fr.json"
+  ]
+}
