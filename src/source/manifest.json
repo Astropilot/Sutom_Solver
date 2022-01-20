@@ -16,8 +16,7 @@
     "447": "icons/sutom_logo.png"
   },
   "permissions": [
-    "*://sutom.nocle.fr/*",
-    "*://*.codexus.fr/*"
+    "*://sutom.nocle.fr/*"
   ],
   "content_scripts": [
     {
