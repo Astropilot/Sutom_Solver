@@ -116,8 +116,12 @@ function filterDictionary(dictionnary: string[], lettersFilters: Map<string, Let
     wordsWithVowelCount.set(word, count);
   }
 
-  // We return the word with the highest count of vowels
-  const finalWord = [...wordsWithVowelCount.entries()].reduce((a, e) => e[1] > a[1] ? e : a)[0];
+  const maxVowelCount = Math.max(...wordsWithVowelCount.values());
+
+  potentialWords = [...wordsWithVowelCount.entries()].filter(entry => entry[1] === maxVowelCount).map(entry => entry[0]);
+
+  // We return a word with the highest count of vowels
+  const finalWord = potentialWords[Math.floor(Math.random()*potentialWords.length)]!;
 
   return finalWord;
 }
