@@ -1,4 +1,4 @@
-const IS_DEBUG = false;
+const isDebug = false;
 
 interface LetterInfo {
   letter: string;
@@ -9,21 +9,21 @@ interface LetterInfo {
 interface LetterFilter {
   count: number;
   countType: 'min' | 'exact';
-  matchPositions: number[];
-  forbiddenPositions: number[];
+  matchPositions: Set<number>;
+  forbiddenPositions: Set<number>;
 }
 
-function letterCountInString(str: string, letter: string): number {
+function letterCountInString(string_: string, letter: string): number {
   const reg = new RegExp(letter, 'g');
 
-  return (str.match(reg) || []).length;
+  return (string_.match(reg) ?? []).length;
 }
 
 function letterCountInRow(rowInfo: LetterInfo[], letter: string): number {
   let count = 0;
 
-  for (const letter_info of rowInfo) {
-    if (letter_info.letter === letter && letter_info.type !== 'absent') {
+  for (const letterInfo of rowInfo) {
+    if (letterInfo.letter === letter && letterInfo.type !== 'absent') {
       count++;
     }
   }
@@ -38,7 +38,7 @@ function constructRowInfo(rowElement: Element): LetterInfo[] {
   // We construct our row with easy to access information for each letter
   for (let j = 0; j < letterCellElements.length; j++) {
     const cellElement = letterCellElements.item(j);
-    const letter = cellElement.textContent || '';
+    const letter = cellElement.textContent ?? '';
     let cellType: 'absent' | 'present' | 'correct';
 
     if (cellElement.classList.contains('non-trouve')) {
@@ -48,11 +48,14 @@ function constructRowInfo(rowElement: Element): LetterInfo[] {
     } else if (cellElement.classList.contains('bien-place')) {
       cellType = 'correct';
     } else {
-      if (IS_DEBUG) console.error(`Letter "${letter}" on cell index ${j} do not have any type!`, rowElement);
+      if (isDebug) {
+        console.error(`Letter "${letter}" on cell index ${j} do not have any type!`, rowElement);
+      }
+
       cellType = 'absent';
     }
 
-    rowInfo.push({ letter: letter, type: cellType, index: j });
+    rowInfo.push({letter, type: cellType, index: j});
   }
 
   return rowInfo;
@@ -68,50 +71,71 @@ function constructFiltersQuery(rowInfo: LetterInfo[], lettersFilters: Map<string
       lettersFilters.set(letterInfo.letter, {
         count: letterCount,
         countType: 'min',
-        matchPositions: [],
-        forbiddenPositions: []
+        matchPositions: new Set(),
+        forbiddenPositions: new Set(),
       });
     }
 
-    if (letterInfo.type === 'absent') {
-      lettersFilters.get(letterInfo.letter)!.countType = 'exact';
-    } else if (letterInfo.type === 'present') {
-      lettersFilters.get(letterInfo.letter)!.forbiddenPositions.push(letterInfo.index);
-    } else if (letterInfo.type === 'correct') {
-      lettersFilters.get(letterInfo.letter)!.matchPositions.push(letterInfo.index);
+    switch (letterInfo.type) {
+      case 'absent': {
+        lettersFilters.get(letterInfo.letter)!.countType = 'exact';
+        break;
+      }
+      case 'present': {
+        lettersFilters.get(letterInfo.letter)!.forbiddenPositions.add(letterInfo.index);
+        break;
+      }
+      case 'correct': {
+        lettersFilters.get(letterInfo.letter)!.matchPositions.add(letterInfo.index);
+        break;
+      }
     }
   }
 }
 
-function filterDictionary(dictionnary: string[], lettersFilters: Map<string, LetterFilter>, wordSize: number): string {
+function filterDictionary(dictionary: string[], lettersFilters: Map<string, LetterFilter>, wordSize: number): string {
   let potentialWords: string[] = [];
 
-  potentialWords = dictionnary.filter(word => {
-    if (word.length !== wordSize) return false;
+  potentialWords = dictionary.filter(word => {
+    if (word.length !== wordSize) {
+      return false;
+    }
 
     for (const [letter, info] of lettersFilters) {
-      var occurence_count = letterCountInString(word, letter);
+      const occurenceCount = letterCountInString(word, letter);
 
-      if (info.countType === 'min' && occurence_count < info.count) return false;
-      else if (info.countType === 'exact' && occurence_count !== info.count) return false;
+      if (info.countType === 'min' && occurenceCount < info.count) {
+        return false;
+      }
+
+      if (info.countType === 'exact' && occurenceCount !== info.count) {
+        return false;
+      }
 
       for (const letterPosition of info.forbiddenPositions) {
-        if (word[letterPosition] === letter) return false;
+        if (word[letterPosition] === letter) {
+          return false;
+        }
       }
 
       for (const letterPosition of info.matchPositions) {
-        if (word[letterPosition] !== letter) return false;
+        if (word[letterPosition] !== letter) {
+          return false;
+        }
       }
     }
+
     return true;
   });
 
-  if (IS_DEBUG) console.log('Potential words list', potentialWords);
+  if (isDebug) {
+    console.log('Potential words list', potentialWords);
+  }
 
   // We count the number of vowels for each potential words
   const wordsWithVowelCount = new Map<string, number>();
   for (const word of potentialWords) {
-    const count = word.replaceAll('[^AEIOU]', '').length;
+    const count = word.replace(/[^EAIS]/g, '').length;
 
     wordsWithVowelCount.set(word, count);
   }
@@ -121,7 +145,7 @@ function filterDictionary(dictionnary: string[], lettersFilters: Map<string, Let
   potentialWords = [...wordsWithVowelCount.entries()].filter(entry => entry[1] === maxVowelCount).map(entry => entry[0]);
 
   // We return a word with the highest count of vowels
-  const finalWord = potentialWords[Math.floor(Math.random()*potentialWords.length)]!;
+  const finalWord = potentialWords[Math.floor(Math.random() * potentialWords.length)]!;
 
   return finalWord;
 }
@@ -130,12 +154,13 @@ function sendWordToVirtualKeyboard(word: string): void {
   for (const letter of word) {
     document.querySelector<HTMLElement>(`.input-lettre[data-lettre="${letter}"]`)?.click();
   }
+
   document.querySelector<HTMLElement>('.input-lettre[data-lettre="_entree"]')?.click();
 }
 
 async function startGame(dictionary: string[]) {
   const lettersFilters = new Map<string, LetterFilter>();
-  let gameNotFinished: boolean = false;
+  let gameNotFinished = false;
   let currentLineIndex = 0;
 
   gameNotFinished = document.querySelector<HTMLElement>('#victoire-panel')?.style.display === '';
@@ -154,17 +179,21 @@ async function startGame(dictionary: string[]) {
       const rowInfo: LetterInfo[] = [{
         letter: gridRows[currentLineIndex]!.querySelector('td')!.textContent!,
         type: 'correct',
-        index: 0
+        index: 0,
       }];
 
       constructFiltersQuery(rowInfo, lettersFilters);
     }
 
-    if (IS_DEBUG) console.log('Letters filters', lettersFilters);
+    if (isDebug) {
+      console.log('Letters filters', lettersFilters);
+    }
 
     const finalWord = filterDictionary(dictionary, lettersFilters, wordSize);
 
-    if (IS_DEBUG) console.log('Final word to write', finalWord);
+    if (isDebug) {
+      console.log('Final word to write', finalWord);
+    }
 
     sendWordToVirtualKeyboard(finalWord);
 
@@ -174,35 +203,38 @@ async function startGame(dictionary: string[]) {
     gameNotFinished = gameNotFinished && document.querySelector<HTMLElement>('#defaite-panel')?.style.display === '';
     currentLineIndex++;
 
-    if (IS_DEBUG) console.log('-----------------------------------------');
+    if (isDebug) {
+      console.log('-----------------------------------------');
+    }
   }
 }
 
 (async () => {
-
   await new Promise(resolve => setTimeout(resolve, 2000));
 
-  let isGameFinished: boolean = false;
-  let isGamePending: boolean = false;
+  let isGameFinished = false;
+  let isGamePending = false;
 
   isGameFinished = document.querySelector<HTMLElement>('#victoire-panel')?.style.display !== '';
   isGameFinished = isGameFinished || document.querySelector<HTMLElement>('#defaite-panel')?.style.display !== '';
   isGamePending = document.querySelector('td.resultat') !== null;
 
-  if (isGameFinished || isGamePending) return;
+  if (isGameFinished || isGamePending) {
+    return;
+  }
 
-  const dictionary = await (await fetch(chrome.runtime.getURL('sutom/dictionary_fr.json'))).json();
+  const dictionary: string[] = await (await fetch(chrome.runtime.getURL('sutom/dictionary_fr.json'))).json();
 
   const divContenu = document.querySelector('#contenu');
   const divReglesPanel = document.querySelector('#regles-panel');
   const divResolve = document.createElement('div');
   const buttonResolve = document.createElement('div');
 
-  divResolve.appendChild(buttonResolve);
+  divResolve.append(buttonResolve);
   divContenu?.insertBefore(divResolve, divReglesPanel);
 
   buttonResolve.classList.add('input-lettre', 'lettre-bien-place');
-  buttonResolve.appendChild(document.createTextNode('Résoudre !'));
+  buttonResolve.append(document.createTextNode('Résoudre !'));
 
   buttonResolve.addEventListener('click', async function handler() {
     this.removeEventListener('click', handler);
@@ -210,6 +242,8 @@ async function startGame(dictionary: string[]) {
     buttonResolve.classList.add('lettre-mal-place');
     await startGame(dictionary);
     divResolve.remove();
-    if (IS_DEBUG) console.log('Game finished!');
+    if (isDebug) {
+      console.log('Game finished!');
+    }
   });
 })();
