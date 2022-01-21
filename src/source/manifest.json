@@ -30,6 +30,6 @@
     }
   ],
   "web_accessible_resources": [
-    "sutom/dictionnary_fr.json"
+    "sutom/dictionary_fr.json"
   ]
 }
