@@ -163,8 +163,7 @@ async function startGame(dictionary: string[]) {
   let gameNotFinished = false;
   let currentLineIndex = 0;
 
-  gameNotFinished = document.querySelector<HTMLElement>('#victoire-panel')?.style.display === '';
-  gameNotFinished = gameNotFinished && document.querySelector<HTMLElement>('#defaite-panel')?.style.display === '';
+  gameNotFinished = document.querySelector<HTMLElement>('.fin-de-partie-panel') === null;
 
   while (gameNotFinished) {
     const gridRows = document.querySelectorAll('#grille > table > tr');
@@ -199,8 +198,7 @@ async function startGame(dictionary: string[]) {
 
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    gameNotFinished = document.querySelector<HTMLElement>('#victoire-panel')?.style.display === '';
-    gameNotFinished = gameNotFinished && document.querySelector<HTMLElement>('#defaite-panel')?.style.display === '';
+    gameNotFinished = document.querySelector<HTMLElement>('.fin-de-partie-panel') === null;
     currentLineIndex++;
 
     if (isDebug) {
@@ -215,8 +213,7 @@ async function startGame(dictionary: string[]) {
   let isGameFinished = false;
   let isGamePending = false;
 
-  isGameFinished = document.querySelector<HTMLElement>('#victoire-panel')?.style.display !== '';
-  isGameFinished = isGameFinished || document.querySelector<HTMLElement>('#defaite-panel')?.style.display !== '';
+  isGameFinished = document.querySelector<HTMLElement>('.fin-de-partie-panel') !== null;
   isGamePending = document.querySelector('td.resultat') !== null;
 
   if (isGameFinished || isGamePending) {
@@ -225,13 +222,14 @@ async function startGame(dictionary: string[]) {
 
   const dictionary: string[] = await (await fetch(chrome.runtime.getURL('sutom/dictionary_fr.json'))).json();
 
-  const divContenu = document.querySelector('#contenu');
-  const divReglesPanel = document.querySelector('#regles-panel');
+  //const divContenu = document.querySelector('#contenu');
+  const divInputArea = document.querySelector('#input-area');
   const divResolve = document.createElement('div');
   const buttonResolve = document.createElement('div');
 
   divResolve.append(buttonResolve);
-  divContenu?.insertBefore(divResolve, divReglesPanel);
+  //divContenu?.insertBefore(divResolve, divInputArea);
+  divInputArea?.parentNode?.insertBefore(divResolve, divInputArea.nextSibling);
 
   buttonResolve.classList.add('input-lettre', 'lettre-bien-place');
   buttonResolve.append(document.createTextNode('Résoudre !'));
