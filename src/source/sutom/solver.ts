@@ -13,23 +13,6 @@ interface LetterFilter {
   forbiddenPositions: Set<number>;
 }
 
-function letterCountInString(string_: string, letter: string): number {
-  const reg = new RegExp(letter, 'g');
-
-  return (string_.match(reg) ?? []).length;
-}
-
-function letterCountInRow(rowInfo: LetterInfo[], letter: string): number {
-  let count = 0;
-
-  for (const letterInfo of rowInfo) {
-    if (letterInfo.letter === letter && letterInfo.type !== 'absent') {
-      count++;
-    }
-  }
-
-  return count;
-}
 
 function constructRowInfo(rowElement: Element): LetterInfo[] {
   const letterCellElements = rowElement.querySelectorAll('td');
@@ -63,7 +46,7 @@ function constructRowInfo(rowElement: Element): LetterInfo[] {
 
 function constructFiltersQuery(rowInfo: LetterInfo[], lettersFilters: Map<string, LetterFilter>): void {
   for (const letterInfo of rowInfo) {
-    const letterCount = letterCountInRow(rowInfo, letterInfo.letter);
+    const letterCount = rowInfo.filter(row => letterInfo.letter === row.letter && row.type !== 'absent').length;
 
     if (lettersFilters.has(letterInfo.letter)) {
       lettersFilters.get(letterInfo.letter)!.count = letterCount;
@@ -93,16 +76,14 @@ function constructFiltersQuery(rowInfo: LetterInfo[], lettersFilters: Map<string
   }
 }
 
-function filterDictionary(dictionary: string[], lettersFilters: Map<string, LetterFilter>, wordSize: number): string {
-  let potentialWords: string[] = [];
-
-  potentialWords = dictionary.filter(word => {
+function filterDictionary(dictionary: string[], lettersFilters: Map<string, LetterFilter>, wordSize: number): string[] {
+  return dictionary.filter(word => {
     if (word.length !== wordSize) {
       return false;
     }
 
     for (const [letter, info] of lettersFilters) {
-      const occurenceCount = letterCountInString(word, letter);
+      const occurenceCount = [...word].filter(l => l === letter).length;
 
       if (info.countType === 'min' && occurenceCount < info.count) {
         return false;
@@ -127,25 +108,51 @@ function filterDictionary(dictionary: string[], lettersFilters: Map<string, Lett
 
     return true;
   });
+}
+
+function guessWord(dictionary: string[], tryCount: number, previousGuess: string) {
+  const wordsWithSpecificLettersCount = new Map<string, number>();
+  let specificCount: number;
+
+  if (tryCount === 1) { // Strategy on first try
+    // We want the words that have the least number of repeated letters
+    for (const word of dictionary) {
+      const lettersInWord: string[] = [];
+      let counter = 0;
+
+      for (let letter of word) {
+        if (lettersInWord.includes(letter)) {
+          counter++;
+        } else {
+          lettersInWord.push(letter);
+        }
+      }
+
+      wordsWithSpecificLettersCount.set(word, counter);
+    }
+
+    specificCount = Math.min(...wordsWithSpecificLettersCount.values());
+  } else { // Strategy on all other tries
+    // We want the words that differ as much as possible from the previous
+    // guessed word for all letters
+    for (const word of dictionary) {
+      const regexSpecificLetters = new RegExp(`[^${previousGuess}]`, 'g');
+      const count = word.replace(regexSpecificLetters, '').length;
+
+      wordsWithSpecificLettersCount.set(word, count);
+    }
+
+    specificCount = Math.max(...wordsWithSpecificLettersCount.values());
+  }
+
+  dictionary = [...wordsWithSpecificLettersCount.entries()].filter(entry => entry[1] === specificCount).map(entry => entry[0]);
 
   if (isDebug) {
-    console.log('Potential words list', potentialWords);
+    console.log('Potential words list after strategies', dictionary);
   }
 
-  // We count the number of vowels for each potential words
-  const wordsWithVowelCount = new Map<string, number>();
-  for (const word of potentialWords) {
-    const count = word.replace(/[^EAIS]/g, '').length;
-
-    wordsWithVowelCount.set(word, count);
-  }
-
-  const maxVowelCount = Math.max(...wordsWithVowelCount.values());
-
-  potentialWords = [...wordsWithVowelCount.entries()].filter(entry => entry[1] === maxVowelCount).map(entry => entry[0]);
-
-  // We return a word with the highest count of vowels
-  const finalWord = potentialWords[Math.floor(Math.random() * potentialWords.length)]!;
+  // The random factor :/
+  const finalWord = dictionary[Math.floor(Math.random() * dictionary.length)]!;
 
   return finalWord;
 }
@@ -162,6 +169,7 @@ async function startGame(dictionary: string[]) {
   const lettersFilters = new Map<string, LetterFilter>();
   let gameNotFinished = false;
   let currentLineIndex = 0;
+  let previousGuess = '';
 
   gameNotFinished = document.querySelector<HTMLElement>('.fin-de-partie-panel') === null;
 
@@ -188,13 +196,20 @@ async function startGame(dictionary: string[]) {
       console.log('Letters filters', lettersFilters);
     }
 
-    const finalWord = filterDictionary(dictionary, lettersFilters, wordSize);
+    dictionary = filterDictionary(dictionary, lettersFilters, wordSize);
 
     if (isDebug) {
-      console.log('Final word to write', finalWord);
+      console.log('Potential words list', dictionary);
     }
 
-    sendWordToVirtualKeyboard(finalWord);
+    const wordGuess = guessWord(dictionary, currentLineIndex+1, previousGuess);
+
+    if (isDebug) {
+      console.log('Final word to write', wordGuess);
+    }
+
+    previousGuess = wordGuess;
+    sendWordToVirtualKeyboard(wordGuess);
 
     await new Promise(resolve => setTimeout(resolve, 3000));
 
