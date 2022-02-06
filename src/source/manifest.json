@@ -25,7 +25,7 @@
       ],
       "run_at": "document_idle",
       "js": [
-        "sutom/solver.js"
+        "sutom/game.js"
       ]
     }
   ],

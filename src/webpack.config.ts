@@ -16,7 +16,9 @@ const config: Configuration = {
     builtAt: true,
   },
   entry: Object.fromEntries([
-    'sutom/solver',
+    'sutom/game',
+    //'sutom/solver/strategies/lessRepeatedLettersStrategy',
+    //'sutom/solver/strategies/wordsDifferFromPreviousGuessStrategy',
   ].map(name => [name, `./source/${name}`])),
   output: {
     path: path.join(__dirname, 'distribution'),
